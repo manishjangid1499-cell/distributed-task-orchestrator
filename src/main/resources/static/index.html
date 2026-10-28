@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus: Distributed Task Orchestrator & Rate Limiter</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <h2>Nexus Engine</h2>
+                    <span class="badge-tag">Distributed Task Mesh v1.0</span>
+                </div>
+            </div>
+
+            <nav class="nav-links">
+                <a href="#overview" class="nav-item active">📊 Cluster Overview</a>
+                <a href="#workers" class="nav-item">🖥️ Worker Topology</a>
+                <a href="#tasks" class="nav-item">⚡ Priority Task Queue</a>
+                <a href="#dlq" class="nav-item">⚠️ Dead Letter Queue</a>
+                <a href="/h2-console" target="_blank" class="nav-item">🗄️ H2 SQL Console</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="mode-badge">
+                    <span class="pulse-dot"></span>
+                    <span>Java 21 Virtual Threads</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <h1>Distributed Task Orchestration & Rate Limiter</h1>
+                    <p class="subtitle">Fault-Tolerant Execution, Sliding Window Rate Limiting & Heartbeat Recovery</p>
+                </div>
+                <div class="action-buttons">
+                    <button id="btn-submit-task" class="btn btn-primary">➕ Dispatch Task</button>
+                    <button id="btn-flood-traffic" class="btn btn-warning">⚡ Flood 30 Req/s (Rate Limit Test)</button>
+                    <button id="btn-chaos-crash" class="btn btn-danger">💥 Kill Random Worker</button>
+                </div>
+            </header>
+
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span>Total Submitted</span>
+                        <span>📥</span>
+                    </div>
+                    <div class="metric-value" id="val-submitted">0</div>
+                    <div class="metric-footer" id="val-completed">0 Completed</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span>Priority Queue Depth</span>
+                        <span>⚡</span>
+                    </div>
+                    <div class="metric-value" id="val-queue-depth">0</div>
+                    <div class="metric-footer text-success">Preemptive Scheduling</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span>Active / Healthy Workers</span>
+                        <span>🖥️</span>
+                    </div>
+                    <div class="metric-value text-success" id="val-workers">0 / 0</div>
+                    <div class="metric-footer" id="val-worker-status">Heartbeat Supervisor Active</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span>Rate Limit Breaches</span>
+                        <span>🛑</span>
+                    </div>
+                    <div class="metric-value text-warning" id="val-rate-limit-breaches">0</div>
+                    <div class="metric-footer" id="val-avg-latency">Avg Latency: 0ms</div>
+                </div>
+            </section>
+
+            <!-- Worker Cluster Topology Section -->
+            <section class="card section-spacing">
+                <div class="card-header">
+                    <h2>Distributed Worker Nodes Topology</h2>
+                    <span class="card-sub">Heartbeat supervisor monitors node health and recovers orphan tasks</span>
+                </div>
+                <div class="worker-grid" id="worker-grid">
+                    <!-- Populated dynamically -->
+                </div>
+            </section>
+
+            <!-- Priority Task Stream Section -->
+            <section class="card section-spacing">
+                <div class="card-header">
+                    <h2>Live Task Stream</h2>
+                    <span class="card-sub">Preemptive Priority Ordering: CRITICAL > HIGH > NORMAL > LOW</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Task Name</th>
+                                <th>Priority</th>
+                                <th>Worker</th>
+                                <th>Retries</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="task-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No tasks currently queued. Dispatch a task above!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Dead Letter Queue Section -->
+            <section class="card section-spacing">
+                <div class="card-header">
+                    <h2>Dead Letter Queue (Quarantine)</h2>
+                    <span class="card-sub">Tasks that exhausted all retry attempts are quarantined for replay</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Task Name</th>
+                                <th>Failure Reason</th>
+                                <th>Attempts</th>
+                                <th>Quarantined At</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dlq-table-body">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Dead Letter Queue is empty.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
