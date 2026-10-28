@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: nexus-distributed-orchestrator
+
+  datasource:
+    url: jdbc:h2:mem:nexusdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+nexus:
+  scheduler:
+    core-pool-size: 8
+    max-pool-size: 32
+    queue-capacity: 1000
+    keep-alive-seconds: 60
+    heartbeat-timeout-seconds: 15
+    supervisor-interval-ms: 5000
+    default-max-retries: 3
+    rate-limit:
+      default-requests-per-window: 20
+      window-seconds: 10
