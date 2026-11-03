@@ -104,7 +104,7 @@ public class TaskExecutionEngine {
 
         try {
             // Check if simulated failure requested
-            if (task.getPayload() != null && task.getPayload().contains("SIMULATE_FAILURE")) {
+            if (task.getPayloadAsString() != null && task.getPayloadAsString().contains("SIMULATE_FAILURE")) {
                 throw new RuntimeException("Simulated hardware/IO fault in execution pipeline");
             }
 
@@ -158,7 +158,7 @@ public class TaskExecutionEngine {
             DeadLetterRecord dlq = new DeadLetterRecord(
                 task.getTaskId(),
                 task.getTaskName(),
-                task.getPayload(),
+                task.getPayloadAsString(),
                 errorMessage,
                 retries
             );
@@ -181,7 +181,7 @@ public class TaskExecutionEngine {
         if (executor != null) {
             executor.shutdown();
             try {
-                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                     executor.shutdownNow();
                 }
             } catch (InterruptedException e) {
