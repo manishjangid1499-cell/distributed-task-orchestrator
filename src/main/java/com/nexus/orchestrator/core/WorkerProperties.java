@@ -50,6 +50,11 @@ public class WorkerProperties {
      */
     private int heartbeatTimeoutSeconds = 15;
 
+    /**
+     * Whether legacy in-memory execution engine is enabled (disabled by default in Nexus 2.0).
+     */
+    private boolean legacyEngineEnabled = false;
+
     public WorkerProperties() {
         try {
             this.hostname = InetAddress.getLocalHost().getHostName();
@@ -95,4 +100,7 @@ public class WorkerProperties {
 
     public int getHeartbeatTimeoutSeconds() { return heartbeatTimeoutSeconds; }
     public void setHeartbeatTimeoutSeconds(int heartbeatTimeoutSeconds) { this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds; }
+
+    public boolean isLegacyEngineEnabled() { return legacyEngineEnabled; }
+    public void setLegacyEngineEnabled(boolean legacyEngineEnabled) { this.legacyEngineEnabled = legacyEngineEnabled; }
 }

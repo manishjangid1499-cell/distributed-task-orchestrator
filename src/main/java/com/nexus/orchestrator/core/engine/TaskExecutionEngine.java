@@ -1,5 +1,6 @@
 package com.nexus.orchestrator.core.engine;
 
+import com.nexus.orchestrator.core.WorkerProperties;
 import com.nexus.orchestrator.core.metrics.SystemMetricsCollector;
 import com.nexus.orchestrator.model.DeadLetterRecord;
 import com.nexus.orchestrator.model.Task;
@@ -10,6 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +35,9 @@ public class TaskExecutionEngine {
     private ThreadPoolExecutor executor;
     private PriorityBlockingQueue<Runnable> priorityQueue;
 
+    @Autowired(required = false)
+    private WorkerProperties workerProperties;
+
     public TaskExecutionEngine(
         TaskRepository taskRepository,
         DeadLetterRepository deadLetterRepository,
@@ -51,6 +56,11 @@ public class TaskExecutionEngine {
 
     @PostConstruct
     public void initialize() {
+        if (workerProperties != null && !workerProperties.isLegacyEngineEnabled()) {
+            log.info("[Engine] In-memory TaskExecutionEngine bypassed (distributed PostgreSQL coordination active)");
+            return;
+        }
+
         this.priorityQueue = new PriorityBlockingQueue<>(queueCapacity);
 
         AtomicInteger threadId = new AtomicInteger(1);
