@@ -1,21 +1,11 @@
-# Multi-stage Docker build for Nexus Distributed Task Orchestrator
-FROM eclipse-temurin:21-jdk-alpine AS builder
-
-WORKDIR /build
-COPY pom.xml .
-COPY src ./src
-
-# Build JAR with tests
-RUN apk add --no-cache maven && mvn clean package -DskipTests
-
-# Production Runtime Image
+# Production Runtime Image for Nexus Distributed Task Orchestrator
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
 RUN addgroup -S nexus && adduser -S nexus -G nexus
 
-COPY --from=builder /build/target/*.jar app.jar
+COPY target/*.jar app.jar
 
 RUN chown -R nexus:nexus /app
 USER nexus

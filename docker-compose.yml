@@ -1,15 +1,94 @@
 version: '3.8'
 
 services:
-  nexus-orchestrator:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexusdb}
+      POSTGRES_USER: ${DB_USERNAME:-nexus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nexus_secret_pw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-nexus} -d ${POSTGRES_DB:-nexusdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nexus-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nexus-orchestrator
+    container_name: nexus-api
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - NEXUS_SCHEDULER_CORE_POOL_SIZE=16
-      - NEXUS_SCHEDULER_MAX_POOL_SIZE=64
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/nexusdb}
+      DB_USERNAME: ${DB_USERNAME:-nexus}
+      DB_PASSWORD: ${DB_PASSWORD:-nexus_secret_pw}
+      NEXUS_MODE: API
+      NEXUS_API_KEY: ${NEXUS_API_KEY:-nexus-admin-key-2026}
+      NEXUS_MAX_ATTEMPTS: ${NEXUS_MAX_ATTEMPTS:-3}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
+
+  worker-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-worker-1
+    environment:
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/nexusdb}
+      DB_USERNAME: ${DB_USERNAME:-nexus}
+      DB_PASSWORD: ${DB_PASSWORD:-nexus_secret_pw}
+      NEXUS_MODE: WORKER
+      NEXUS_WORKER_ID: ${NEXUS_WORKER_1_ID:-worker-1}
+      NEXUS_WORKER_THREADS: ${NEXUS_WORKER_THREADS:-8}
+      NEXUS_POLL_INTERVAL_MS: ${NEXUS_POLL_INTERVAL_MS:-500}
+      NEXUS_LEASE_DURATION_SECONDS: ${NEXUS_LEASE_DURATION_SECONDS:-15}
+      NEXUS_HEARTBEAT_INTERVAL_SECONDS: ${NEXUS_HEARTBEAT_INTERVAL_SECONDS:-5}
+      NEXUS_MAX_ATTEMPTS: ${NEXUS_MAX_ATTEMPTS:-3}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nexus-api:
+        condition: service_started
+    restart: unless-stopped
+
+  worker-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-worker-2
+    environment:
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/nexusdb}
+      DB_USERNAME: ${DB_USERNAME:-nexus}
+      DB_PASSWORD: ${DB_PASSWORD:-nexus_secret_pw}
+      NEXUS_MODE: WORKER
+      NEXUS_WORKER_ID: ${NEXUS_WORKER_2_ID:-worker-2}
+      NEXUS_WORKER_THREADS: ${NEXUS_WORKER_THREADS:-8}
+      NEXUS_POLL_INTERVAL_MS: ${NEXUS_POLL_INTERVAL_MS:-500}
+      NEXUS_LEASE_DURATION_SECONDS: ${NEXUS_LEASE_DURATION_SECONDS:-15}
+      NEXUS_HEARTBEAT_INTERVAL_SECONDS: ${NEXUS_HEARTBEAT_INTERVAL_SECONDS:-5}
+      NEXUS_MAX_ATTEMPTS: ${NEXUS_MAX_ATTEMPTS:-3}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nexus-api:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
