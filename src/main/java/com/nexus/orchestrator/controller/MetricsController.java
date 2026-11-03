@@ -1,9 +1,10 @@
 package com.nexus.orchestrator.controller;
 
-import com.nexus.orchestrator.core.engine.TaskExecutionEngine;
 import com.nexus.orchestrator.core.metrics.SystemMetricsCollector;
+import com.nexus.orchestrator.model.TaskStatus;
 import com.nexus.orchestrator.model.WorkerStatus;
 import com.nexus.orchestrator.model.dto.MetricsSummaryResponse;
+import com.nexus.orchestrator.repository.TaskRepository;
 import com.nexus.orchestrator.repository.WorkerRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -17,16 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class MetricsController {
 
     private final SystemMetricsCollector metrics;
-    private final TaskExecutionEngine executionEngine;
+    private final TaskRepository taskRepository;
     private final WorkerRepository workerRepository;
 
     public MetricsController(
         SystemMetricsCollector metrics,
-        TaskExecutionEngine executionEngine,
+        TaskRepository taskRepository,
         WorkerRepository workerRepository
     ) {
         this.metrics = metrics;
-        this.executionEngine = executionEngine;
+        this.taskRepository = taskRepository;
         this.workerRepository = workerRepository;
     }
 
@@ -35,17 +36,26 @@ public class MetricsController {
         int healthyWorkers = (int) workerRepository.countByStatus(WorkerStatus.HEALTHY);
         int totalWorkers = (int) workerRepository.count();
 
+        long pendingCount = taskRepository.countByStatus(TaskStatus.PENDING) + taskRepository.countByStatus(TaskStatus.RETRY_WAIT);
+        long runningCount = taskRepository.countByStatus(TaskStatus.RUNNING);
+        long completedCount = taskRepository.countByStatus(TaskStatus.COMPLETED);
+        long dlqCount = taskRepository.countByStatus(TaskStatus.DEAD_LETTERED);
+
+        long submitted = Math.max(metrics.getTotalSubmitted(), completedCount + runningCount + pendingCount + dlqCount);
+
         MetricsSummaryResponse res = new MetricsSummaryResponse(
-            metrics.getTotalSubmitted(),
-            metrics.getTotalCompleted(),
-            metrics.getTotalFailed(),
+            submitted,
+            completedCount,
+            metrics.getTotalFailed() > 0 ? metrics.getTotalFailed() : dlqCount,
             metrics.getTotalRetried(),
-            metrics.getTotalDeadLettered(),
-            executionEngine.getQueueSize(),
+            dlqCount,
+            (int) pendingCount,
             totalWorkers,
             healthyWorkers,
             Math.round(metrics.getAverageLatencyMs() * 100.0) / 100.0,
-            metrics.getRateLimitViolations()
+            metrics.getRateLimitViolations(),
+            pendingCount,
+            runningCount
         );
         return ResponseEntity.ok(res);
     }

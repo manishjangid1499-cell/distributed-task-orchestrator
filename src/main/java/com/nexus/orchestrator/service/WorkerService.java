@@ -3,10 +3,10 @@ package com.nexus.orchestrator.service;
 import com.nexus.orchestrator.model.WorkerNode;
 import com.nexus.orchestrator.model.WorkerStatus;
 import com.nexus.orchestrator.repository.WorkerRepository;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,24 +22,11 @@ public class WorkerService {
         this.workerRepository = workerRepository;
     }
 
-    @PostConstruct
-    public void seedInitialWorkers() {
-        if (workerRepository.count() == 0) {
-            List<WorkerNode> defaultWorkers = List.of(
-                new WorkerNode("worker-us-east-1a", "node-cluster-01.internal", 10),
-                new WorkerNode("worker-us-east-1b", "node-cluster-02.internal", 10),
-                new WorkerNode("worker-eu-west-1a", "node-cluster-03.internal", 15),
-                new WorkerNode("worker-ap-south-1a", "node-cluster-04.internal", 10)
-            );
-            workerRepository.saveAll(defaultWorkers);
-            log.info("[WorkerService] Pre-seeded {} default worker nodes into the cluster.", defaultWorkers.size());
-        }
-    }
-
     public List<WorkerNode> listAllWorkers() {
         return workerRepository.findAll();
     }
 
+    @Transactional
     public boolean recordHeartbeat(String workerId) {
         Optional<WorkerNode> opt = workerRepository.findById(workerId);
         if (opt.isPresent()) {
@@ -51,28 +38,30 @@ public class WorkerService {
         return false;
     }
 
+    @Transactional
     public boolean simulateWorkerCrash(String workerId) {
         Optional<WorkerNode> opt = workerRepository.findById(workerId);
         if (opt.isPresent()) {
             WorkerNode worker = opt.get();
             worker.setStatus(WorkerStatus.CRASHED);
             // Simulate last heartbeat 30 seconds ago to immediately trigger supervisor
-            worker.setLastHeartbeat(Instant.now().minusSeconds(30));
+            worker.setLastHeartbeatAt(Instant.now().minusSeconds(30));
             workerRepository.save(worker);
-            log.warn("[ChaosEngineering] Simulated crash injected into Worker [{}]!", workerId);
+            log.warn("[WorkerService] Worker [{}] status updated to CRASHED.", workerId);
             return true;
         }
         return false;
     }
 
+    @Transactional
     public boolean recoverWorker(String workerId) {
         Optional<WorkerNode> opt = workerRepository.findById(workerId);
         if (opt.isPresent()) {
             WorkerNode worker = opt.get();
             worker.setStatus(WorkerStatus.HEALTHY);
-            worker.setLastHeartbeat(Instant.now());
+            worker.setLastHeartbeatAt(Instant.now());
             workerRepository.save(worker);
-            log.info("[WorkerService] Worker [{}] brought back ONLINE.", workerId);
+            log.info("[WorkerService] Worker [{}] status updated to HEALTHY.", workerId);
             return true;
         }
         return false;

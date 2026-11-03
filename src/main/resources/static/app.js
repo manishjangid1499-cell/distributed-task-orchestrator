@@ -191,6 +191,9 @@ async function killRandomWorker() {
 }
 
 async function replayDLQ(taskId) {
-    await fetch(`/api/v1/dlq/${taskId}/replay`, { method: "POST" });
+    const key = localStorage.getItem("nexus_api_key") || "";
+    const headers = { "Content-Type": "application/json" };
+    if (key) headers["X-API-KEY"] = key;
+    await fetch(`/api/v1/dlq/${taskId}/replay`, { method: "POST", headers: headers });
     refreshAll();
 }
