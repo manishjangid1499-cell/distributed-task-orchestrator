@@ -1,15 +1,23 @@
 package com.nexus.orchestrator.model;
 
 /**
- * Lifecycle states of an orchestrated task.
+ * Persistent lifecycle states of an orchestrated task.
  */
 public enum TaskStatus {
+    PENDING,
+    RUNNING,
+    RETRY_WAIT,
+    COMPLETED,
+    DEAD_LETTERED,
+    CANCELLED,
+
+    // Aliases for backward compatibility
     SUBMITTED,
     QUEUED,
-    RUNNING,
-    COMPLETED,
     FAILED,
-    RETRYING,
-    DEAD_LETTERED,
-    CANCELLED
+    RETRYING;
+
+    public boolean isTerminal() {
+        return this == COMPLETED || this == DEAD_LETTERED || this == CANCELLED;
+    }
 }

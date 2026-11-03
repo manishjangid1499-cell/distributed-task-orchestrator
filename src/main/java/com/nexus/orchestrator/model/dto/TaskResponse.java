@@ -1,16 +1,21 @@
 package com.nexus.orchestrator.model.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.nexus.orchestrator.model.Task;
 import com.nexus.orchestrator.model.TaskPriority;
 import com.nexus.orchestrator.model.TaskStatus;
+
 import java.time.Instant;
 
 public record TaskResponse(
     String taskId,
+    String taskType,
     String taskName,
     TaskPriority priority,
     TaskStatus status,
     String assignedWorkerId,
+    long fencingToken,
+    String idempotencyKey,
     int retryCount,
     int maxRetries,
     Instant createdAt,
@@ -18,16 +23,21 @@ public record TaskResponse(
     Instant completedAt,
     Long executionDurationMs,
     String errorMessage,
-    String submittedBy
+    String submittedBy,
+    JsonNode payload,
+    JsonNode result
 ) {
     public static TaskResponse fromEntity(Task task) {
         if (task == null) return null;
         return new TaskResponse(
             task.getTaskId(),
+            task.getTaskType(),
             task.getTaskName(),
             task.getPriority(),
             task.getStatus(),
             task.getAssignedWorkerId(),
+            task.getFencingToken(),
+            task.getIdempotencyKey(),
             task.getRetryCount(),
             task.getMaxRetries(),
             task.getCreatedAt(),
@@ -35,7 +45,9 @@ public record TaskResponse(
             task.getCompletedAt(),
             task.getExecutionDurationMs(),
             task.getErrorMessage(),
-            task.getSubmittedBy()
+            task.getSubmittedBy(),
+            task.getPayload(),
+            task.getResult()
         );
     }
 }
